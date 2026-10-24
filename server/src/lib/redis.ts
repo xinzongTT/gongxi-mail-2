@@ -11,8 +11,13 @@ export function getRedis(): Redis | null {
 
     if (!redis) {
         redis = new Redis(env.REDIS_URL, {
-            maxRetriesPerRequest: 3,
+            // 缓存只是加速层，Redis 故障时必须快速失败走无缓存路径，
+            // 否则每次取件光等缓存重试就能拖过前端 30 秒超时（2026-10-24 实测踩中）
+            maxRetriesPerRequest: 1,
+            connectTimeout: 3000,
+            commandTimeout: 2000,
             lazyConnect: true,
+            retryStrategy: (times) => Math.min(times * 200, 2000),
         });
 
         redis.on('connect', () => {
